@@ -98,9 +98,20 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
   // the slice and used outside of the slice.
   SetVector<Value> results;
   for (Operation *op : secondSlice) {
+
     for (OpOperand &use : op->getUses()) {
       Operation *user = use.getOwner();
-      if (!secondSlice.contains(user)) {
+
+      // walk over all ancestors to see if the use is inside the slice
+      do {
+        if (secondSlice.contains(user)) {
+          break;
+        }
+        user = user->getParentOp();
+      } while (user != funcOp);
+
+      // none of the parents of the use is in the slice, so this is a result
+      if (user == funcOp) {
         results.insert(use.get());
       }
     }
@@ -111,6 +122,7 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
   // now.
   for (auto result : results) {
     auto shapedType = dyn_cast<ShapedType>(result.getType());
+
     if (!shapedType.hasStaticShape()) {
       emitError(result.getLoc())
           << "unhandled dynamic dimensions for created dispatch region";
