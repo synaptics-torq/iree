@@ -247,8 +247,6 @@ struct ScatterOpConversion final
   LogicalResult
   matchAndRewrite(mlir::stablehlo::ScatterOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!hasCanonicalDimensionNumbers(op))
-      return failure();
     if (llvm::size(op.getInputs()) != 1)
       return op.emitError("NYI variadic operands scatter");
     if (llvm::size(op.getUpdates()) != 1)
