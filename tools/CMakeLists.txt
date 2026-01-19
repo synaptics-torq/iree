@@ -256,6 +256,25 @@ iree_cc_binary(
   INSTALL_COMPONENT IREETools-Runtime
 )
 
+iree_cc_binary(
+  NAME
+    run-inference
+  SRCS
+    "simple_iree_infer.c"
+  DEPS
+    iree::base
+    iree::base::internal::flags
+    iree::hal
+    iree::tooling::context_util
+    iree::tooling::run_module
+    iree::vm
+  COVERAGE ${IREE_ENABLE_RUNTIME_COVERAGE}
+  INSTALL_COMPONENT IREETools-Runtime
+)
+
+
+
+
 if(IREE_BUILD_COMPILER)
   if(IREE_LLVM_LINK_TARGET)
     install(
