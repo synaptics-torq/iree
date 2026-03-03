@@ -18,7 +18,7 @@
 
 // Limit the number of bindings we pass down through the HAL. This can be tuned
 // in the future but right now guards the stack from blowing up during calls.
-#define IREE_HAL_MODULE_MAX_DESCRIPTOR_BINDING_COUNT ((iree_host_size_t)64)
+#define IREE_HAL_MODULE_MAX_DESCRIPTOR_BINDING_COUNT ((iree_host_size_t)128)
 
 // Limit the number of execution bindings in a binding table. This today limits
 // our number of unique indirect buffers used within a command buffer but the

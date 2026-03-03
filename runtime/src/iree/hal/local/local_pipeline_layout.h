@@ -20,7 +20,7 @@ extern "C" {
 // iree_hal_local_descriptor_set_layout_t
 //===----------------------------------------------------------------------===//
 
-#define IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT 64
+#define IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT 128
 
 typedef struct iree_hal_local_descriptor_set_layout_t {
   iree_hal_resource_t resource;
