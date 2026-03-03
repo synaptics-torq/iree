@@ -494,18 +494,18 @@ static iree_status_t iree_hal_inline_command_buffer_dispatch(
   // Note that we are just directly setting the binding data pointers here with
   // no ownership/retaining/etc - it's part of the HAL contract that buffers are
   // kept valid for the duration they may be in use.
-  iree_hal_local_binding_mask_t used_binding_mask = local_layout->used_bindings;
+  const iree_hal_local_binding_mask_t* used_binding_mask =
+      &local_layout->used_bindings;
   iree_host_size_t used_binding_count =
-      iree_math_count_ones_u64(used_binding_mask);
+      iree_hal_local_binding_mask_count_ones(used_binding_mask);
   dispatch_state->binding_count = used_binding_count;
   void** binding_ptrs = (void**)dispatch_state->binding_ptrs;
   size_t* binding_lengths = (size_t*)dispatch_state->binding_lengths;
-  iree_host_size_t binding_base = 0;
+  int binding_ordinal = 0;
   for (iree_host_size_t i = 0; i < used_binding_count; ++i) {
-    int mask_offset = iree_math_count_trailing_zeros_u64(used_binding_mask);
-    int binding_ordinal = binding_base + mask_offset;
-    binding_base += mask_offset + 1;
-    used_binding_mask = iree_shr(used_binding_mask, mask_offset + 1);
+    binding_ordinal =
+        iree_hal_local_binding_mask_next_set_bit(used_binding_mask,
+                                                  binding_ordinal);
     binding_ptrs[i] = command_buffer->state.full_bindings[binding_ordinal];
     if (!binding_ptrs[i]) {
       return iree_make_status(IREE_STATUS_FAILED_PRECONDITION,
@@ -513,6 +513,7 @@ static iree_status_t iree_hal_inline_command_buffer_dispatch(
     }
     binding_lengths[i] =
         command_buffer->state.full_binding_lengths[binding_ordinal];
+    ++binding_ordinal;
   }
 
   // TODO(benvanik): plumb through an arena or fixed-size reservation to use.

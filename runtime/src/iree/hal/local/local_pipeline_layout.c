@@ -127,8 +127,8 @@ iree_status_t iree_hal_local_pipeline_layout_create(
                                  &layout->resource);
     layout->host_allocator = host_allocator;
     layout->push_constants = push_constants;
-    layout->used_bindings = 0;
-    layout->read_only_bindings = 0;
+    iree_hal_local_binding_mask_clear(&layout->used_bindings);
+    iree_hal_local_binding_mask_clear(&layout->read_only_bindings);
     layout->set_layout_count = set_layout_count;
     for (iree_host_size_t i = 0; i < set_layout_count; ++i) {
       layout->set_layouts[i] = set_layouts[i];
@@ -138,9 +138,8 @@ iree_status_t iree_hal_local_pipeline_layout_create(
           iree_hal_local_descriptor_set_layout_cast(set_layouts[i]);
       for (iree_host_size_t j = 0; j < local_set_layout->binding_count; ++j) {
         // Track that this binding is used in the sparse set.
-        const iree_hal_local_binding_mask_t binding_bit =
-            1ull << (i * IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT + j);
-        layout->used_bindings |= binding_bit;
+        int binding_index = i * IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT + j;
+        iree_hal_local_binding_mask_set(&layout->used_bindings, binding_index);
 
         // Track which bindings are read-only so we can protect memory and
         // verify usage.
@@ -148,7 +147,8 @@ iree_status_t iree_hal_local_pipeline_layout_create(
             &local_set_layout->bindings[j];
         if (iree_all_bits_set(binding->flags,
                               IREE_HAL_DESCRIPTOR_FLAG_READ_ONLY)) {
-          layout->read_only_bindings |= binding_bit;
+          iree_hal_local_binding_mask_set(&layout->read_only_bindings,
+                                          binding_index);
         }
       }
     }

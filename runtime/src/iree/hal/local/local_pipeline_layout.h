@@ -7,6 +7,7 @@
 #ifndef IREE_HAL_LOCAL_LOCAL_PIPELINE_LAYOUT_H_
 #define IREE_HAL_LOCAL_LOCAL_PIPELINE_LAYOUT_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "iree/base/api.h"
@@ -48,10 +49,70 @@ iree_hal_local_descriptor_set_layout_cast(
 #define IREE_HAL_LOCAL_MAX_DESCRIPTOR_SET_COUNT 2
 #define IREE_HAL_LOCAL_MAX_PUSH_CONSTANT_COUNT 64
 
-typedef uint64_t iree_hal_local_binding_mask_t;
+// Number of 64-bit words needed to represent the binding mask.
+// To increase max bindings, just increase IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT.
+#define IREE_HAL_LOCAL_BINDING_MASK_WORDS \
+  ((IREE_HAL_LOCAL_MAX_DESCRIPTOR_BINDING_COUNT + 63) / 64)
+
+typedef struct {
+  uint64_t words[IREE_HAL_LOCAL_BINDING_MASK_WORDS];
+} iree_hal_local_binding_mask_t;
 
 #define IREE_HAL_LOCAL_BINDING_MASK_BITS \
-  (sizeof(iree_hal_local_binding_mask_t) * 8)
+  (IREE_HAL_LOCAL_BINDING_MASK_WORDS * 64)
+
+// Initialize a binding mask to zero.
+static inline void iree_hal_local_binding_mask_clear(
+    iree_hal_local_binding_mask_t* mask) {
+  for (int i = 0; i < IREE_HAL_LOCAL_BINDING_MASK_WORDS; ++i) {
+    mask->words[i] = 0;
+  }
+}
+
+// Set a bit in the binding mask.
+static inline void iree_hal_local_binding_mask_set(
+    iree_hal_local_binding_mask_t* mask, int bit) {
+  int word_idx = bit / 64;
+  int bit_idx = bit % 64;
+  mask->words[word_idx] |= (1ull << bit_idx);
+}
+
+// Test if a bit is set in the binding mask.
+static inline bool iree_hal_local_binding_mask_test(
+    const iree_hal_local_binding_mask_t* mask, int bit) {
+  int word_idx = bit / 64;
+  int bit_idx = bit % 64;
+  return (mask->words[word_idx] & (1ull << bit_idx)) != 0;
+}
+
+// Count the number of set bits in the binding mask.
+static inline int iree_hal_local_binding_mask_count_ones(
+    const iree_hal_local_binding_mask_t* mask) {
+  int count = 0;
+  for (int i = 0; i < IREE_HAL_LOCAL_BINDING_MASK_WORDS; ++i) {
+    count += __builtin_popcountll(mask->words[i]);
+  }
+  return count;
+}
+
+// Find the index of the next set bit starting from |start| (inclusive).
+// Returns -1 if no more bits are set.
+static inline int iree_hal_local_binding_mask_next_set_bit(
+    const iree_hal_local_binding_mask_t* mask, int start) {
+  int word_idx = start / 64;
+  int bit_idx = start % 64;
+  for (int i = word_idx; i < IREE_HAL_LOCAL_BINDING_MASK_WORDS; ++i) {
+    uint64_t word = mask->words[i];
+    // Mask off bits before our starting position in the first word.
+    if (i == word_idx) {
+      word &= ~((1ull << bit_idx) - 1);
+    }
+    if (word) {
+      return i * 64 + __builtin_ctzll(word);
+    }
+  }
+  return -1;
+}
 
 typedef struct iree_hal_local_pipeline_layout_t {
   iree_hal_resource_t resource;

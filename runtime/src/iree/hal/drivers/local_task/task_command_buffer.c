@@ -902,9 +902,10 @@ static iree_status_t iree_hal_task_command_buffer_build_dispatch(
       (iree_hal_local_pipeline_layout_t*)
           local_executable->pipeline_layouts[entry_point];
   iree_host_size_t push_constant_count = local_layout->push_constants;
-  iree_hal_local_binding_mask_t used_binding_mask = local_layout->used_bindings;
+  const iree_hal_local_binding_mask_t* used_binding_mask =
+      &local_layout->used_bindings;
   iree_host_size_t used_binding_count =
-      iree_math_count_ones_u64(used_binding_mask);
+      iree_hal_local_binding_mask_count_ones(used_binding_mask);
 
   // To save a few command buffer bytes we narrow these:
   if (IREE_UNLIKELY(push_constant_count >= UINT16_MAX) ||
@@ -962,18 +963,18 @@ static iree_status_t iree_hal_task_command_buffer_build_dispatch(
   cmd_ptr += used_binding_count * sizeof(*binding_ptrs);
   size_t* binding_lengths = (size_t*)cmd_ptr;
   cmd_ptr += used_binding_count * sizeof(*binding_lengths);
-  iree_host_size_t binding_base = 0;
+  int binding_ordinal = 0;
   for (iree_host_size_t i = 0; i < used_binding_count; ++i) {
-    int mask_offset = iree_math_count_trailing_zeros_u64(used_binding_mask);
-    int binding_ordinal = binding_base + mask_offset;
-    binding_base += mask_offset + 1;
-    used_binding_mask = iree_shr(used_binding_mask, mask_offset + 1);
+    binding_ordinal =
+        iree_hal_local_binding_mask_next_set_bit(used_binding_mask,
+                                                  binding_ordinal);
     binding_ptrs[i] = command_buffer->state.bindings[binding_ordinal];
     binding_lengths[i] = command_buffer->state.binding_lengths[binding_ordinal];
     if (!binding_ptrs[i]) {
       return iree_make_status(IREE_STATUS_FAILED_PRECONDITION,
                               "(flat) binding %d is NULL", binding_ordinal);
     }
+    ++binding_ordinal;
   }
 
   *out_cmd = cmd;
