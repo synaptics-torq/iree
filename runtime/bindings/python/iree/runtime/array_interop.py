@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 import logging
 import numpy as np
 import numpy.lib.mixins
+import ml_dtypes
 
 from ._binding import (
     BufferUsage,
@@ -177,7 +178,12 @@ class DeviceArray(numpy.lib.mixins.NDArrayOperatorsMixin):
         return host_array
 
     def _get_raw_dtype(self):
-        return HalElementType.map_to_dtype(self._buffer_view.element_type)
+        element_type = self._buffer_view.element_type
+        dtype = _HAL_ELEMENT_TYPE_TO_DTYPE.get(element_type)
+        if dtype is not None:
+            return dtype
+        # Fall back to C++ mapping for any types not in our table.
+        return HalElementType.map_to_dtype(element_type)
 
     @property
     def dtype(self):
@@ -303,12 +309,20 @@ _DTYPE_TO_HAL_ELEMENT_TYPE = (
     (np.bool_, HalElementType.BOOL_8),
     (np.complex64, HalElementType.COMPLEX_64),
     (np.complex128, HalElementType.COMPLEX_128),
+    # ml_dtypes: types not natively supported by numpy
+    # add more supported HalElementType as needed
+    (np.dtype(ml_dtypes.bfloat16), HalElementType.BFLOAT_16),
 )
+
+# Reverse mapping for HalElementType -> numpy dtype, used by _get_raw_dtype to
+# avoid going through the C++ map_to_dtype which doesn't know about ml_dtypes.
+# Keyed by int because buffer_view.element_type returns a raw integer, not
+# an HalElementType enum.
+_HAL_ELEMENT_TYPE_TO_DTYPE = {int(et): np.dtype(dt) for dt, et in _DTYPE_TO_HAL_ELEMENT_TYPE}
 
 
 def map_dtype_to_element_type(dtype) -> Optional[HalElementType]:
     for match_dtype, element_type in _DTYPE_TO_HAL_ELEMENT_TYPE:
         if match_dtype == dtype:
             return element_type
-    else:
-        return None
+    return None
