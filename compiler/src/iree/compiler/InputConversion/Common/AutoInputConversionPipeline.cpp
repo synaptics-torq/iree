@@ -42,6 +42,12 @@ void AutoInputConversionPipelinePass::runOnOperation() {
   if (detectedTypeMnemonics.empty())
     return;
 
+  // Allow plugins to resolve input type conflicts
+  pipelineExtensions->resolveDetectedCustomInputConversionTypes(
+      detectedTypeMnemonics);
+  if (detectedTypeMnemonics.empty())
+    return;
+
   if (detectedTypeMnemonics.getNumItems() > 1) {
     // TODO(scotttodd): handle multiple typeMnemonics (use all?)
     auto diag = moduleOp.emitError(
