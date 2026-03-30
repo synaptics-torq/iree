@@ -156,18 +156,18 @@ buildMakeSingleDispatchPassPipeline(OpPassManager &passManager,
   bubbleOptions.enableReshapeMovementAcrossReductions = true;
   passManager.addPass(
       DispatchCreation::createBubbleUpExpandShapesPass(bubbleOptions));
-  passManager.addPass(DispatchCreation::createElementwiseOpFusionPass(
-      DispatchCreation::ElementwiseOpFusionPassOptions{
-          /*enableElementWiseFuseMultiReduction=*/true}));
+  //passManager.addPass(DispatchCreation::createElementwiseOpFusionPass(
+      //DispatchCreation::ElementwiseOpFusionPassOptions{
+  //        /*enableElementWiseFuseMultiReduction=*/true}));
   // After elementwise operation fusion sink reshapes that block
   // producer-consumer fusion.
   passManager.addPass(DispatchCreation::createSinkReshapesPass());
   passManager.addPass(createMakeSingleDispatchForFunctionPass());
-  passManager.addPass(DispatchCreation::createElementwiseOpFusionPass(
-      DispatchCreation::ElementwiseOpFusionPassOptions{
-          /*intraDispatch=*/true,
-          /*fuseMultiReduction=*/false,
-          /*fuseTruncateOps=*/true}));
+  //passManager.addPass(DispatchCreation::createElementwiseOpFusionPass(
+  //    DispatchCreation::ElementwiseOpFusionPassOptions{
+   //       /*intraDispatch=*/true,
+  //       /*fuseMultiReduction=*/false,
+  //        /*fuseTruncateOps=*/true}));
 }
 
 void registerPreprocessingPasses() {

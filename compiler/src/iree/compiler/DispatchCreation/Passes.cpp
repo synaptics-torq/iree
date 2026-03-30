@@ -99,15 +99,7 @@ static void addDispatchRegionCreationPreprocessingPasses(
     OpPassManager &passManager, const TransformOptions &dispatchOptions) {
   // 1. Do some simple elementwise op fusion. This could be skipped,
   //    but could reduce the surface area of ops to handle later.
-  FunctionLikeNest(passManager)
-      .addPass([]() {
-        return DispatchCreation::createElementwiseOpFusionPass(
-            ElementwiseOpFusionPassOptions{
-                /*intraDispatch=*/false,
-                /*fuseMultiReduction=*/clEnableElementWiseFuseMultiReduction,
-                /*fuseTruncateOps=*/clEnableEarlyTruncFusion,
-                /*fuseBroadcastOps=*/false});
-      })
+  FunctionLikeNest(passManager)      
       .addPass(IREE::Flow::createCanonicalizePass)
       .addPass(mlir::createCSEPass)
 
@@ -126,14 +118,14 @@ static void addDispatchRegionCreationPreprocessingPasses(
 
       // 3. Perform elementwise operation fusion again (now with higher
       //    dimensionality).
-      .addPass([]() {
-        return DispatchCreation::createElementwiseOpFusionPass(
-            ElementwiseOpFusionPassOptions{
-                /*intraDispatch=*/false,
-                /*fuseMultiReduction=*/clEnableElementWiseFuseMultiReduction,
-                /*fuseTruncateOps=*/clEnableEarlyTruncFusion,
-                /*fuseBroadcastOps=*/false});
-      })
+    //   .addPass([]() {
+    //     return DispatchCreation::createElementwiseOpFusionPass(
+    //         ElementwiseOpFusionPassOptions{
+    //             /*intraDispatch=*/false,
+    //             /*fuseMultiReduction=*/clEnableElementWiseFuseMultiReduction,
+    //             /*fuseTruncateOps=*/clEnableEarlyTruncFusion,
+    //             /*fuseBroadcastOps=*/false});
+    //   })
       .addPass(IREE::Flow::createCanonicalizePass)
       .addPass(mlir::createCSEPass)
 
@@ -153,9 +145,9 @@ static void addDispatchRegionCreationPreprocessingPasses(
   FunctionLikeNest(passManager)
       // 5. After all the reshape propagations, fuse elementwise operations
       //    even if the producer has multiple uses.
-      .addPredicatedPass(
-          dispatchOptions.enableFuseMultiUse,
-          DispatchCreation::createFuseMultiUseElementwiseProducerPass)
+    //   .addPredicatedPass(
+    //       dispatchOptions.enableFuseMultiUse,
+    //       DispatchCreation::createFuseMultiUseElementwiseProducerPass)
 
       // 6. Some more "post elementwise fusion passes".
       .addPass(IREE::Flow::createCanonicalizePass)
@@ -217,22 +209,22 @@ static void addDispatchRegionCreationPasses(OpPassManager &passManager,
                 clEnableFusePaddingIntoLinalgProducerOps});
       })
       // Elementwise fuse operations that are iside a dispatch if possible.
-      .addPass([&]() {
-        return DispatchCreation::createElementwiseOpFusionPass(
-            ElementwiseOpFusionPassOptions{/*intraDispatch=*/true,
-                                           /*fuseMultiReduction=*/false,
-                                           /*fuseTruncateOps=*/true,
-                                           /*fuseBroadcastOps=*/true});
-      })
+    //   .addPass([&]() {
+    //     return DispatchCreation::createElementwiseOpFusionPass(
+    //         ElementwiseOpFusionPassOptions{/*intraDispatch=*/true,
+    //                                        /*fuseMultiReduction=*/false,
+    //                                        /*fuseTruncateOps=*/true,
+    //                                        /*fuseBroadcastOps=*/true});
+    //   })
       // 5. After all the reshape propagations, fuse elementwise operations
       //    even if the producer has multiple uses.
-      .addPass([] {
-        FuseMultiUseElementwiseProducerPassOptions options;
-        options.intraDispatch = true;
-        options.numIterations = 32;
-        return DispatchCreation::createFuseMultiUseElementwiseProducerPass(
-            options);
-      })
+    //   .addPass([] {
+    //     FuseMultiUseElementwiseProducerPassOptions options;
+    //     options.intraDispatch = true;
+    //     options.numIterations = 32;
+    //     return DispatchCreation::createFuseMultiUseElementwiseProducerPass(
+    //         options);
+    //   })
 
       // Clone all producers into the dispatch region to prepare for being
       // isolated from above. This enables running additional transformations
