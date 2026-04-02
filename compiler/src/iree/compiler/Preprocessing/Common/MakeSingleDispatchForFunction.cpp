@@ -48,6 +48,11 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
             tensor::TensorDialect>(dialect)) {
       return true;
     }
+
+    if(op->getDialect()->getNamespace() == "torq_hl") {
+      return true;
+    }
+    
     if (isa<arith::ArithDialect>(dialect)) {
       return !isa<arith::ConstantOp>(op);
     }
