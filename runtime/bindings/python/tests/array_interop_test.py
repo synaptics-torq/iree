@@ -7,6 +7,7 @@
 import copy
 import pickle
 import gc
+import ml_dtypes
 import numpy as np
 import unittest
 
@@ -174,6 +175,45 @@ class DeviceHalTest(unittest.TestCase):
         ary = iree.runtime.asdevicearray(self.device, init_ary)
         self.assertEqual(repr(ary), "<IREE DeviceArray: shape=[3, 4], dtype=bool>")
         np.testing.assert_array_equal(ary.to_host(), init_ary)
+
+    def testBfloat16Roundtrip(self):
+        init_ary = np.array([1.0, 2.0, 0.5, -1.0], dtype=ml_dtypes.bfloat16)
+        ary = iree.runtime.asdevicearray(self.device, init_ary)
+        self.assertEqual(ary.dtype, ml_dtypes.bfloat16)
+        result = ary.to_host()
+        np.testing.assert_array_equal(result, init_ary)
+        self.assertEqual(result.dtype, ml_dtypes.bfloat16)
+
+    def testBfloat16_2D(self):
+        init_ary = np.ones([3, 4], dtype=ml_dtypes.bfloat16) * 2.5
+        ary = iree.runtime.asdevicearray(self.device, init_ary)
+        self.assertEqual([3, 4], ary.shape)
+        self.assertEqual(ary.dtype, ml_dtypes.bfloat16)
+        np.testing.assert_array_equal(ary.to_host(), init_ary)
+
+    def testFloat16Roundtrip(self):
+        init_ary = np.array([1.0, 2.0, 0.5, -1.0], dtype=np.float16)
+        ary = iree.runtime.asdevicearray(self.device, init_ary)
+        self.assertEqual(ary.dtype, np.float16)
+        result = ary.to_host()
+        np.testing.assert_array_equal(result, init_ary)
+        self.assertEqual(result.dtype, np.float16)
+
+    def testDtypeToElementTypeMapping(self):
+        from iree.runtime.array_interop import (
+            map_dtype_to_element_type,
+            _HAL_ELEMENT_TO_DTYPE,
+        )
+
+        # Verify bf16 forward mapping exists.
+        et = map_dtype_to_element_type(ml_dtypes.bfloat16)
+        self.assertIsNotNone(et)
+        self.assertEqual(et, iree.runtime.HalElementType.BFLOAT_16)
+
+        # Verify bf16 reverse mapping exists.
+        bf16_et_int = int(iree.runtime.HalElementType.BFLOAT_16)
+        self.assertIn(bf16_et_int, _HAL_ELEMENT_TO_DTYPE)
+        self.assertEqual(_HAL_ELEMENT_TO_DTYPE[bf16_et_int], np.dtype(ml_dtypes.bfloat16))
 
 
 if __name__ == "__main__":
