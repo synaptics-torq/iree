@@ -180,7 +180,11 @@ py::object HalAllocator::AllocateBufferCopy(
   // only request that via PyBUF_ND. Long term, we should consult an
   // "oracle" in the runtime to determine the precise required format
   // and set flags accordingly (and fallback/copy on failure).
-  int flags = PyBUF_C_CONTIGUOUS | PyBUF_ND;
+  // Note: We intentionally omit PyBUF_FORMAT because custom dtypes (e.g.
+  // ml_dtypes.bfloat16) cannot provide a standard format string through the
+  // buffer protocol. Since we receive element_type separately and never read
+  // py_view.format, this is safe.
+  int flags = PyBUF_ND;
 
   // Acquire the backing buffer and setup RAII release.
   if (PyObject_GetBuffer(buffer.ptr(), &py_view, flags) != 0) {
@@ -243,7 +247,8 @@ HalBuffer HalAllocator::AllocateHostStagingBufferCopy(HalDevice& device,
   // only request that via PyBUF_ND. Long term, we should consult an
   // "oracle" in the runtime to determine the precise required format
   // and set flags accordingly (and fallback/copy on failure).
-  int flags = PyBUF_C_CONTIGUOUS | PyBUF_ND;
+  // Note: We intentionally omit PyBUF_FORMAT (see AllocateBufferCopy).
+  int flags = PyBUF_ND;
 
   // Acquire the backing buffer and setup RAII release.
   if (PyObject_GetBuffer(buffer.ptr(), &py_view, flags) != 0) {
