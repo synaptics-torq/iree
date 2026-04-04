@@ -79,6 +79,7 @@ class InvokeStatics {
   py::str kDtypeAttr = py::str("dtype");
 
   // Primitive type names.
+  py::str kF16 = py::str("f16");
   py::str kF32 = py::str("f32");
   py::str kF64 = py::str("f64");
   py::str kI1 = py::str("i1");
@@ -86,6 +87,7 @@ class InvokeStatics {
   py::str kI16 = py::str("i16");
   py::str kI32 = py::str("i32");
   py::str kI64 = py::str("i64");
+  py::str kBf16 = py::str("bf16");
 
   // Compound types names.
   py::str kNdarray = py::str("ndarray");
@@ -539,6 +541,7 @@ class InvokeStatics {
 
   py::dict BuildAbiTypeToDtype() {
     auto d = py::dict();
+    d[kF16] = numpy_module().attr("float16");
     d[kF32] = numpy_module().attr("float32");
     d[kF64] = numpy_module().attr("float64");
     d[kI1] = numpy_module().attr("bool_");
@@ -546,6 +549,9 @@ class InvokeStatics {
     d[kI16] = numpy_module().attr("int16");
     d[kI64] = numpy_module().attr("int64");
     d[kI32] = numpy_module().attr("int32");
+    // ml_dtypes: types not natively supported by numpy.
+    py::module_ ml_dtypes = py::module_::import_("ml_dtypes");
+    d[kBf16] = ml_dtypes.attr("bfloat16");
     return d;
   }
 

@@ -10,6 +10,7 @@ import json
 import logging
 
 import numpy as np
+import ml_dtypes
 
 from ._binding import (
     _invoke_statics,
@@ -281,12 +282,15 @@ VM_TO_PYTHON_CONVERTERS = {
 ABI_TYPE_TO_DTYPE = {
     # TODO: Others.
     "f32": np.float32,
+    "f16": np.float16,
     "i32": np.int32,
     "i64": np.int64,
     "f64": np.float64,
     "i16": np.int16,
     "i8": np.int8,
     "i1": np.bool_,
+    # ml_dtypes: types not natively supported by numpy
+    "bf16": ml_dtypes.bfloat16,
 }
 
 # When we get an ndarray as an argument and are implicitly mapping it to a
