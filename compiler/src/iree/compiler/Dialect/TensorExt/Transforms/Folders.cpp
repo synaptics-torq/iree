@@ -59,6 +59,15 @@ struct FoldInsertSliceWithTensorStoreOp
     if (!insertSliceOp)
       return failure();
 
+    // This fold is only valid when the insert_slice destination is a
+    // tensor.empty. In that case the destination is uninitialized, so we can
+    // skip the insert and directly store the source at the right offsets.
+    // In all other cases the destination carries meaningful data that would be
+    // lost by folding into a dispatch.tensor.store (which writes the whole
+    // value).
+    if (!insertSliceOp.getDest().getDefiningOp<tensor::EmptyOp>())
+      return failure();
+
     SmallVector<OpFoldResult> offsets, sizes, strides;
     // `tensor.insert_slice` (i.e. the producer) folds **into**
     // `iree_tensor_ext.dispatch.tensor.store` (i.e. the consumer).
