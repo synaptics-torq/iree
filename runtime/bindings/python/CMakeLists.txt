@@ -102,6 +102,12 @@ set_target_properties(
   iree_runtime_bindings_python_PyExtRt
   PROPERTIES OUTPUT_NAME "iree/_runtime_libs/_runtime"
 )
+if(DEFINED PYTHON_MODULE_EXTENSION)
+  set_target_properties(
+    iree_runtime_bindings_python_PyExtRt
+    PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}"
+  )
+endif()
 
 iree_py_library(
   NAME
