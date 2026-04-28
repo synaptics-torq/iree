@@ -318,8 +318,8 @@ LogicalResult optimizeClosureLikeOp(const ClosureOptimizationOptions &options,
     if (existingIt == argToBlockMap.end()) {
       // Not found - record for deduping.
       argToBlockMap.insert(std::make_pair(opArg.value(), blockArg));
-    } else {
-      // Found - replace.
+    } else if (existingIt->second.getType() == blockArg.getType()) {
+      // Found with same type - replace.
       elidedOperands.push_back(opArg.index());
       blockArgReplacements[opArg.index()] = existingIt->second;
     }
