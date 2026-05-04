@@ -1181,6 +1181,15 @@ struct TensorConstantToSplat : public OpRewritePattern<TensorConstantOp> {
           constantOp,
           "only constant splat attrs can be converted to splat ops");
     }
+    // Skip 64-bit (and wider) splat constants: these are lowered through
+    // __builtin_splat_* dispatches which use dynamic workload shapes and
+    // create dynamic bindings that downstream targets may not handle.
+    auto elementType = getElementTypeOrSelf(splatAttr.getType());
+    if (IREE::Util::getTypeBitWidth(elementType) > 32) {
+      return rewriter.notifyMatchFailure(
+          constantOp,
+          "splat constant element type too wide for builtin lowering");
+    }
 
     Value splatValue;
     if (isa<ComplexType>(getElementTypeOrSelf(splatAttr.getType()))) {
@@ -1492,6 +1501,13 @@ struct ConvertSplatConstantsIntoSplats
                                 PatternRewriter &rewriter) const override {
     auto value = dyn_cast<ElementsAttr>(constantOp.getValue());
     if (!value || !value.isSplat()) {
+      return failure();
+    }
+    // Skip 64-bit (and wider) splat constants: these are lowered through
+    // __builtin_splat_* dispatches which use dynamic workload shapes and
+    // create dynamic bindings that downstream targets may not handle.
+    auto elementType = value.getElementType();
+    if (IREE::Util::getTypeBitWidth(elementType) > 32) {
       return failure();
     }
     auto splatElementAttr =
