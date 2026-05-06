@@ -128,7 +128,7 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
   for (auto result : results) {
     auto shapedType = dyn_cast<ShapedType>(result.getType());
 
-    if (!shapedType.hasStaticShape()) {
+    if (!shapedType || !shapedType.hasStaticShape()) {
       emitError(result.getLoc())
           << "unhandled dynamic dimensions for created dispatch region";
       return signalPassFailure();
