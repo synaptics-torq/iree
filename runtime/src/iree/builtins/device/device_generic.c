@@ -169,6 +169,38 @@ IREE_DEVICE_EXPORT float __truncdfhf2(double param) {
   return __truncsfhf2((float)param);
 }
 
+// f32 -> bf16. bf16 is the top 16 bits of f32. We add a rounding bias
+// for round-to-nearest-ties-to-even, then shift right by 16.
+//
+// NaN guard: a NaN whose only set bits are in the dropped low 16 would
+// become Inf after the bias add. Route such NaNs to a quiet bf16 NaN.
+//
+// ABI matches libgcc (same as __truncsfhf2 above): returns a `float`
+// with the bf16 in the low 16 bits.
+IREE_DEVICE_EXPORT float __truncsfbf2(float param) {
+  union {
+    float f;
+    uint32_t u;
+  } in = {.f = param};
+  uint32_t bits = in.u;
+
+  if ((bits & 0x7F800000u) == 0x7F800000u && (bits & 0x007FFFFFu) != 0u) {
+    // NaN: route to a quiet bf16 NaN, keep the sign.
+    bits = (bits & 0x80000000u) | 0x7FC00000u;
+  } else {
+    // Round to nearest, ties to even.
+    const uint32_t rounding_bias = 0x7FFFu + ((bits >> 16) & 1u);
+    bits += rounding_bias;
+  }
+
+  uint16_t bf16_bits = (uint16_t)(bits >> 16);
+  union {
+    float f;
+    uint32_t u;
+  } out = {.u = (uint32_t)bf16_bits};
+  return out.f;
+}
+
 IREE_DEVICE_EXPORT double fma(double x, double y, double z) {
   return x * y + z;
 }
