@@ -24,6 +24,7 @@
 #include "mlir/Conversion/ComplexToStandard/ComplexToStandard.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/TosaToArith/TosaToArith.h"
 #include "mlir/Conversion/VectorToArmSME/VectorToArmSME.h"
 #include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVMPass.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
@@ -657,6 +658,14 @@ void buildLLVMCPUCodegenConfigurationPassPipelineImpl(
     FunctionLikeNest funcPassManager(modulePassManager);
     addCommonTargetExecutablePreprocessingPasses(funcPassManager,
                                                  clUseSoftmaxInterFusion);
+    // Lower tosa.apply_scale before any per-dispatch tiling/vectorization.
+    // Otherwise vectorization can produce 0-D vector operands that
+    // tosa.apply_scale's verifier rejects (Tosa_IntLike forbids 0-D vectors).
+    funcPassManager.addPass([]() {
+      return createTosaToArithPass(
+          TosaToArithPassOptions{/*includeApplyRescale=*/true,
+                                 /*use32Bit=*/false});
+    });
   }
   modulePassManager.addPass(createMaterializeUserConfigsPass());
   FunctionLikeNest(modulePassManager)
