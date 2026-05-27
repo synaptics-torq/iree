@@ -139,8 +139,11 @@ struct GenericTypeConversionPattern : public ConversionPattern {
         auto oldAttr = attr.getValue();
         Attribute newAttr = oldAttr;
         if (auto floatAttr = dyn_cast<FloatAttr>(oldAttr)) {
+          // Use IntegerAttr::get(Type, APInt) to preserve exact bit pattern.
+          // getZExtValue() uses uint64_t and crashes on
+          // special values like -Inf/NaN because signed i16 range is exceeded.
           APInt apint = floatAttr.getValue().bitcastToAPInt();
-          newAttr = rewriter.getI16IntegerAttr(apint.getZExtValue());
+          newAttr = IntegerAttr::get(rewriter.getI16Type(), apint);
         } else if (auto denseAttr = dyn_cast<DenseFPElementsAttr>(oldAttr)) {
           newAttr =
               denseAttr.mapValues(rewriter.getI16Type(), [&](APFloat src) {
