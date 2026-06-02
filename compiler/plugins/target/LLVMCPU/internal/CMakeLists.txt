@@ -31,3 +31,19 @@ iree_cc_library(
 )
 
 ### BAZEL_TO_CMAKE_PRESERVES_ALL_CONTENT_BELOW_THIS_LINE ###
+
+# Link x86_64 compiler-rt builtins so the embedded host-CPU link supplies
+# __truncsfbf2 etc.
+# Override with -DIREE_LLVM_X86_BUILTINS_PATH=<path> if needed.
+if(NOT DEFINED IREE_LLVM_X86_BUILTINS_PATH)
+  set(IREE_LLVM_X86_BUILTINS_PATH
+      "${CMAKE_SOURCE_DIR}/third_party/runtimes-prebuilt/libclang_rt.builtins-x86_64.a")
+endif()
+if(EXISTS "${IREE_LLVM_X86_BUILTINS_PATH}")
+  message(STATUS "x86_64 compiler-rt builtins: ${IREE_LLVM_X86_BUILTINS_PATH}")
+  target_compile_definitions(
+    iree_compiler_plugins_target_LLVMCPU_internal_LinkerTools_internal.objects
+    PRIVATE
+    "IREE_LLVM_X86_BUILTINS_PATH=\"${IREE_LLVM_X86_BUILTINS_PATH}\""
+  )
+endif()

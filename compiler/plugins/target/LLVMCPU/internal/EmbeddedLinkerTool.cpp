@@ -193,6 +193,14 @@ public:
       flags.push_back(objectFile.path);
     }
 
+    // Link x86_64 compiler-rt builtins for soft float support.
+    // Path injected via IREE_LLVM_X86_BUILTINS_PATH (CMakeLists.txt).
+#ifdef IREE_LLVM_X86_BUILTINS_PATH
+    if (targetTriple.getArch() == llvm::Triple::x86_64) {
+      flags.push_back(IREE_LLVM_X86_BUILTINS_PATH);
+    }
+#endif
+
     // LLD inserts its own identifier unless the LLD_VERSION env var is set:
     // third_party/llvm-project/lld/ELF/SyntheticSections.cpp
     if (failed(runLinkCommand(llvm::join(flags, " "), "LLD_VERSION=IREE"))) {
