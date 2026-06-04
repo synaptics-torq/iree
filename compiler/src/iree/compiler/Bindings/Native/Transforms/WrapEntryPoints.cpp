@@ -577,10 +577,12 @@ createExportWrapperFunc(IREE::ABI::InvocationModel invocationModel,
   wrapperOp.setAllArgAttrs(argAttrDict);
   wrapperOp.setAllResultAttrs(resultAttrDict);
 
+  // Synaptics change {
   // Propagate tied operands from the export so that stream allocation can reuse
   // input buffers for tied results (e.g. KV-cache in-place updates).
   if (auto tiedAttr = exportOp->getAttrOfType<ArrayAttr>("tied_operands"))
     wrapperOp->setAttr("tied_operands", tiedAttr);
+  // } Synaptics change
 
   // Populate the reflection attrs based on the original types.
   populateReflectionAttrs(invocationModel, exportOp, wrapperOp);
@@ -617,6 +619,7 @@ createExportWrapperFunc(IREE::ABI::InvocationModel invocationModel,
     resultStorages[outputAttr.getInt()] = storageArg;
   }
 
+  // Synaptics change {
   // For tied results, use the tied input argument's buffer as output storage.
   // This tells the stream allocator to reuse the input buffer for the output.
   if (auto tiedOperandsAttr =
@@ -630,6 +633,7 @@ createExportWrapperFunc(IREE::ABI::InvocationModel invocationModel,
       resultStorages[resultIndex] = entryBlock->getArgument(tiedArgIndex);
     }
   }
+  // } Synaptics change
 
   // Find the transient storage buffer if provided.
   Value transientStorage;
@@ -694,6 +698,7 @@ createExportWrapperFunc(IREE::ABI::InvocationModel invocationModel,
   }
 
   // Make the call with the original types.
+  // Synaptics change {
   // Forward tied operands from the callee so the call verifier is satisfied
   // and downstream passes can see the aliasing.
   auto calleeTiedOperands =
@@ -701,6 +706,7 @@ createExportWrapperFunc(IREE::ABI::InvocationModel invocationModel,
   auto callOp = IREE::Util::CallOp::create(entryBuilder, exportOp.getLoc(),
                                            exportOp, arguments,
                                            calleeTiedOperands);
+  // } Synaptics change
   auto asyncResults = llvm::to_vector(callOp.getResults());
 
   // Alias results to storage buffers if provided.
