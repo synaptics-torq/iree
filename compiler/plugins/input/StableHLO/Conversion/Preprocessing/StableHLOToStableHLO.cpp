@@ -564,6 +564,16 @@ struct ScatterImplicitBatch final
     auto indices = cast<Value>(op.getScatterIndices());
     auto indicesTy = dyn_cast<RankedTensorType>(indices.getType());
 
+    auto input = op.getInputs().front();
+    auto update = op.getUpdates().front();
+    auto inputTy = dyn_cast<RankedTensorType>(input.getType());
+    auto updateTy = dyn_cast<RankedTensorType>(update.getType());
+
+    if (inputTy.getRank() > 1 && indicesTy.getRank() == 1 &&
+        updateTy.getRank() == inputTy.getRank()) {
+      return rewriter.notifyMatchFailure(op, "special case handling.");
+    }
+
     // Check whether indices has no batch dimension.
     if (!indicesTy)
       return failure();
@@ -853,8 +863,15 @@ struct ScatterMaterializeInsertedDim final
                                 PatternRewriter &rewriter) const override {
     auto indices = op.getScatterIndices();
     auto operand = op.getInputs().front();
+    auto update = op.getUpdates().front();
     auto indicesTy = cast<ShapedType>(indices.getType());
     auto operandTy = cast<ShapedType>(operand.getType());
+    auto updateTy = cast<ShapedType>(update.getType());
+
+    if (operandTy.getRank() == updateTy.getRank() &&
+        operandTy.getRank() == indicesTy.getRank()) {
+      return rewriter.notifyMatchFailure(op, "special case handling.");
+    }
 
     if (!operandTy.hasRank() || !indicesTy.hasRank()) {
       return rewriter.notifyMatchFailure(op, "operand/indices have no rank");

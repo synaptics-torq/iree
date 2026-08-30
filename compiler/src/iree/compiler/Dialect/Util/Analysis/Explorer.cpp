@@ -1210,8 +1210,10 @@ TraversalResult Explorer::walkTransitiveUses(Value value, UseWalkFn fn,
       if (ownerOp->hasTrait<OpTrait::ReturnLike>() &&
           !isa<CallableOpInterface>(ownerOp->getParentOp())) {
         auto parent = ownerOp->getParentOp();
-        auto result = parent->getResult(use.getOperandNumber());
-        worklist.insert(result);
+        if (use.getOperandNumber() < parent->getResults().size()) {
+          auto result = parent->getResult(use.getOperandNumber());
+          worklist.insert(result);
+        }
       }
 
       // Step across global stores and into all of the loads across the program.
