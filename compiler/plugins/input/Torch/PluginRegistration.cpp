@@ -21,6 +21,7 @@
 #include "torch-mlir/Dialect/Torch/IR/TorchDialect.h"
 #include "torch-mlir/Dialect/TorchConversion/IR/TorchConversionDialect.h"
 #include "torch-mlir/Dialect/TorchConversion/Transforms/Passes.h"
+#include "torq/Conversions/TorchToTorqHL/Passes.h"
 
 namespace mlir::iree_compiler {
 
@@ -74,6 +75,11 @@ struct TorchSession
   bool extendCustomInputConversionPassPipeline(
       OpPassManager &passManager, std::string_view typeMnemonic) override {
     if (typeMnemonic == "onnx") {
+      // Raise onnx.GRU -> torq_hl.gru_cell before torch-mlir's ONNX pipeline
+      // decomposes it into a per-timestep loop.
+      passManager.addNestedPass<func::FuncOp>(
+          mlir::syna::torq::createTorchToTorqHLConversionPass());
+
       // ONNX input is a pre-processing step to torch.
       mlir::torch::Torch::TorchLoweringPipelineOptions torchOnnxPipelineOptions;
       torchOnnxPipelineOptions.decompose = options.decompose;
