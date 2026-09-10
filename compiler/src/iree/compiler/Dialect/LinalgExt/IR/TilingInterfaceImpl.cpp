@@ -2879,6 +2879,43 @@ LogicalResult OnlineAttentionOp::getResultTilePosition(
   return success();
 }
 
+LogicalResult OnlineAttentionOp::getIterationDomainTileFromResultTile(
+    OpBuilder &b, unsigned resultNumber, ArrayRef<OpFoldResult> offsets,
+    ArrayRef<OpFoldResult> sizes, SmallVectorImpl<OpFoldResult> &iterDomainOffsets,
+    SmallVectorImpl<OpFoldResult> &iterDomainSizes) {
+  AffineMap resultIndexingMap;
+  switch (resultNumber) {
+  case 0:
+    resultIndexingMap = getOutputMap();
+    break;
+  case 1:
+    resultIndexingMap = getMaxMap();
+    break;
+  case 2:
+    resultIndexingMap = getSumMap();
+    break;
+  default:
+    return failure();
+  }
+
+  // Start from the full iteration domain, then overwrite the result-covered
+  // dims with the given result tile (same normalization as
+  // AttentionOp::generateResultTileValue, but returning the iteration-domain
+  // tile rather than the tiled op).
+  SmallVector<Range> iterationDomain = getIterationDomain(b);
+  iterDomainOffsets.clear();
+  iterDomainSizes.clear();
+  iterDomainOffsets.assign(iterationDomain.size(), b.getIndexAttr(0));
+  iterDomainSizes = llvm::map_to_vector(iterationDomain, [](Range x) { return x.size; });
+
+  for (auto [i, dimExpr] : llvm::enumerate(resultIndexingMap.getResults())) {
+    int dim = cast<AffineDimExpr>(dimExpr).getPosition();
+    iterDomainOffsets[dim] = offsets[i];
+    iterDomainSizes[dim] = sizes[i];
+  }
+  return success();
+}
+
 static AffineMap getPartialResultMap(AffineMap map, AttentionOpDetail &opInfo) {
   // Append K2 dimensions at start.
   for (auto [idx, dim] : llvm::enumerate(opInfo.getK2Dims())) {
