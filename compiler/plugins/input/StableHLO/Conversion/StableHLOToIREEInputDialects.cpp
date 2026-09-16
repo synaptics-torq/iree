@@ -489,6 +489,28 @@ static void stripFrontendAttrs(mlir::ModuleOp moduleOp) {
   }
 }
 
+struct TransposeOpConversion final
+    : OpConversionPattern<mlir::stablehlo::TransposeOp> {
+  using Base::Base;
+
+  LogicalResult
+  matchAndRewrite(mlir::stablehlo::TransposeOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto resultTy = getTypeConverter()->convertType<ShapedType>(op.getType());
+    if (!resultTy)
+      return rewriter.notifyMatchFailure(op, "Result conversion to ShapedType failed");
+
+    Location loc = op.getLoc();
+    Value emptyTensor = tensor::EmptyOp::create(
+        rewriter, loc, resultTy.getShape(), resultTy.getElementType());
+
+    rewriter.replaceOpWithNewOp<linalg::TransposeOp>(
+        op, adaptor.getOperand(), emptyTensor, op.getPermutationAttr(),
+        linalg::getPrunedAttributeList(op));
+    return success();
+  }
+};
+
 struct ConvertStableHloToIreeInputDialects final
     : impl::ConvertStableHloToIreeInputDialectsBase<
           ConvertStableHloToIreeInputDialects> {
@@ -515,8 +537,8 @@ struct ConvertStableHloToIreeInputDialects final
 
     // Run custom patterns with a high benefit to override stablehlo patterns.
     patterns.add<ConcatenateOpConversion, FftOpConversion,
-                 OptimizationBarrierOpConversion>(*typeConverter, context,
-                                                  PatternBenefit{1000});
+                 OptimizationBarrierOpConversion, TransposeOpConversion>(
+        *typeConverter, context, PatternBenefit{1000});
 
     // Run upstream stablehlo patterns with a default benefit.
     ::mlir::stablehlo::populateStablehloToLinalgConversionPatterns(
