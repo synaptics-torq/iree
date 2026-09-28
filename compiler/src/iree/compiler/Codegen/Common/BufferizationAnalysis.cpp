@@ -577,6 +577,17 @@ LogicalResult createTensorEquivalenceClasses(mlir::FunctionOpInterface funcOp,
           return analyseSingleOperandResultOp(castOp.getSource(),
                                               castOp.getDest(), plan);
         })
+        .Case<tensor::BitcastOp>([&](tensor::BitcastOp bitcastOp) {
+          // Do not merge the source and the result into one equivalence set:
+          // they have different element types, and a set maps to a single
+          // buffer type. One-shot bufferization still aliases the result onto
+          // the source buffer as a memref.cast view where safe; any copy that
+          // is genuinely required (e.g. into an output binding) then operates
+          // on same-element-type memrefs.
+          plan.insert(bitcastOp.getSource());
+          plan.insert(bitcastOp.getDest());
+          return success();
+        })
         .Case<tensor::InsertOp>([&](tensor::InsertOp insertOp) {
           return analyseDestructiveUpdateOp(insertOp, /*source =*/nullptr,
                                             insertOp.getDest(),
