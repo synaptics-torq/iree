@@ -16,6 +16,10 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Support/LLVM.h"
 
+namespace mlir::iree_compiler {
+class PipelineExtensions;
+} // namespace mlir::iree_compiler
+
 namespace mlir::iree_compiler::IREE::Flow {
 
 //===----------------------------------------------------------------------===//
@@ -32,13 +36,17 @@ struct TransformOptions : public PassPipelineOptions<TransformOptions> {};
 // Most translation code should prefer to use this instead of manually adding
 // the passes themselves to ensure that expected pass ordering is observed.
 //
+// If `extensions` is not null, its `extendFlowPassPipeline` hook is invoked
+// after dispatch outlining and deduplication.
+//
 // The expected usage is:
 //   Input legalization by one of:
 //     - Directly passing supported flow plus core ops
 //   buildFlowTransformPassPipeline
 //   <run conversion from flow to sequencer/hal/vm/etc>
-void buildFlowTransformPassPipeline(OpPassManager &passManager,
-                                    const TransformOptions &transformOptions);
+void buildFlowTransformPassPipeline(
+    OpPassManager &passManager, const TransformOptions &transformOptions,
+    mlir::iree_compiler::PipelineExtensions *extensions = nullptr);
 
 void registerFlowTransformPassPipeline();
 

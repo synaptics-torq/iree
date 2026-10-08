@@ -352,7 +352,8 @@ void buildIREEVMTransformPassPipeline(
       IREE_TRACE_ADD_BEGIN_FRAME_PASS(passManager, "Flow");
       if (hooks.beforePhase)
         hooks.beforePhase(IREEVMPipelinePhase::Flow, passManager);
-      IREE::Flow::buildFlowTransformPassPipeline(passManager, flowOptions);
+      IREE::Flow::buildFlowTransformPassPipeline(passManager, flowOptions,
+                                                 hooks.pipelineExtensions);
       if (hooks.afterPhase)
         hooks.afterPhase(IREEVMPipelinePhase::Flow, passManager);
       IREE_TRACE_ADD_END_FRAME_PASS(passManager, "Flow");
