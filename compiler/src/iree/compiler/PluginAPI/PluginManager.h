@@ -172,6 +172,13 @@ public:
     }
   }
 
+  void resolveDetectedCustomInputConversionTypes(
+      llvm::StringSet<> &typeMnemonics) override {
+    for (auto *s : initializedSessions) {
+      s->resolveDetectedCustomInputConversionTypes(typeMnemonics);
+    }
+  }
+
   bool extendCustomInputConversionPassPipeline(
       OpPassManager &passManager, std::string_view typeMnemonic) override {
     bool matched = false;
