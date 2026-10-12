@@ -72,8 +72,12 @@ void buildTOSAInputConversionPassPipeline(OpPassManager &passManager) {
       iree_compiler::createConverti48Toi64Pass());
 
   // Sometimes we generate more TOSA operations during the lowering to linalg.
+  // Synaptics: keep tosa.apply_scale unexpanded (3.10 behavior). The torq
+  // rescale matchers (computeRescaleInfo & co.) anchor on tosa.apply_scale
+  // inside the linalg generic body; expanding it here drops the conv scale
+  // and breaks HW lowering.
   TosaToArithPassOptions tosaToArithPassOptions;
-  tosaToArithPassOptions.includeApplyRescale = true;
+  tosaToArithPassOptions.includeApplyRescale = false;
   passManager.addNestedPass<func::FuncOp>(
       createTosaToArithPass(tosaToArithPassOptions));
   passManager.addNestedPass<func::FuncOp>(createTosaToTensorPass());
