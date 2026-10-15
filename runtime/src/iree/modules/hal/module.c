@@ -18,7 +18,9 @@
 
 // Limit the number of bindings we pass down through the HAL. This can be tuned
 // in the future but right now guards the stack from blowing up during calls.
-#define IREE_HAL_MODULE_MAX_DESCRIPTOR_BINDING_COUNT ((iree_host_size_t)32)
+// Synaptics: raised from upstream 32 to 64; large models (e.g. gemma-3 full
+// decoder) form dispatches with more than 32 bindings.
+#define IREE_HAL_MODULE_MAX_DESCRIPTOR_BINDING_COUNT ((iree_host_size_t)64)
 
 // Limit the number of bindings in a binding table that we allocate on the stack
 // while marshaling from the VM. Counts over this amount will result in heap
