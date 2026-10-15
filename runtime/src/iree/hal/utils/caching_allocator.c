@@ -304,8 +304,13 @@ static void iree_hal_caching_allocator_pool_release(
 
   const iree_device_size_t allocation_size =
       iree_hal_buffer_allocation_size(buffer);
-  const bool under_capacity = pool->total_allocated_size - allocation_size <=
-                              pool->params.max_allocation_capacity;
+  // Zero-size buffers are useless in the pool: they never count toward
+  // total_allocated_size, so pool_trim_to_size (which stops at the size
+  // target) can never evict them and the deinit assertion on free_count
+  // trips. Deallocate them directly.
+  const bool under_capacity = allocation_size > 0 &&
+                              pool->total_allocated_size - allocation_size <=
+                                  pool->params.max_allocation_capacity;
   const bool under_count =
       pool->free_count + 1 <= pool->params.max_free_allocation_count;
   if (under_capacity && under_count) {
