@@ -11,6 +11,7 @@
 #include "iree/compiler/Dialect/Flow/IR/FlowOps.h"
 #include "iree/compiler/Dialect/LinalgExt/Transforms/Passes.h"
 #include "iree/compiler/Dialect/Util/Transforms/Passes.h"
+#include "iree/compiler/PluginAPI/Client.h"
 #include "iree/compiler/Utils/PassUtils.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -125,8 +126,9 @@ static void addCleanupPatterns(OpPassManager &passManager) {
 // Pipelines
 //===----------------------------------------------------------------------===//
 
-void buildFlowTransformPassPipeline(OpPassManager &passManager,
-                                    const TransformOptions &transformOptions) {
+void buildFlowTransformPassPipeline(
+    OpPassManager &passManager, const TransformOptions &transformOptions,
+    PipelineExtensions *extensions) {
   // Start of Flow pipeline: verify semantics legality of the input.
   passManager.addPass(IREE::Flow::createVerifyInputLegalityPass());
 
@@ -188,6 +190,11 @@ void buildFlowTransformPassPipeline(OpPassManager &passManager,
   // an argument if two executables differ only in that one dimension).
   if (!clDisableDeduplication) {
     passManager.addPass(IREE::Flow::createDeduplicateExecutablesPass());
+  }
+
+  // Vendor extension point for passes added after dispatch outlining/dedup.
+  if (extensions) {
+    extensions->extendFlowPassPipeline(passManager);
   }
 
   // Create one function per exported program entry point that can be used with
