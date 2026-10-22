@@ -108,6 +108,13 @@ struct TransformOptions : PassPipelineOptions<TransformOptions> {
       llvm::cl::desc("Enable fusing tensor.pad ops into Linalg consumer ops"),
       llvm::cl::init(false),
   };
+  Option<bool> hoistUniformScalarCompute{
+      *this,
+      "hoist-uniform-scalar-compute",
+      llvm::cl::desc("Hoist uniform scalar computations out of dispatch "
+                     "regions to the host"),
+      llvm::cl::init(true),
+  };
   Option<bool> constExprHoisting{
       *this,
       "const-expr-hoisting",
