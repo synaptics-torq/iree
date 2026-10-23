@@ -425,6 +425,12 @@ void DispatchCreationOptions::bindOptions(OptionsBinder &binder) {
       enableFusePaddingIntoLinalgConsumerOps,
       llvm::cl::desc("Enable fusing tensor.pad ops into Linalg consumer ops."),
       llvm::cl::cat(category));
+  binder.opt<bool>(
+      "iree-dispatch-creation-hoist-uniform-scalar-compute",
+      hoistUniformScalarCompute,
+      llvm::cl::desc("Hoist uniform scalar computations out of dispatch "
+                     "regions to the host."),
+      llvm::cl::cat(category));
 }
 
 } // namespace mlir::iree_compiler

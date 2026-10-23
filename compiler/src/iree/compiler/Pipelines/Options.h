@@ -285,6 +285,11 @@ struct DispatchCreationOptions {
   // Enables fusing tensor.pad ops into Linalg consumer ops.
   bool enableFusePaddingIntoLinalgConsumerOps = false;
 
+  // Hoists uniform scalar computations out of dispatch regions to the host.
+  // Backends without a channel to deliver dispatch constants to the device
+  // must disable this to keep the scalar computation inside the dispatch.
+  bool hoistUniformScalarCompute = true;
+
   void bindOptions(OptionsBinder &binder);
   using FromFlags = OptionsFromFlags<DispatchCreationOptions>;
 };

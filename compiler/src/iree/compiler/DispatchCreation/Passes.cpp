@@ -289,11 +289,14 @@ static void addDispatchRegionCreationPasses(OpPassManager &passManager,
                 options.enableAggressiveFusion});
       })
       // Collapse dimensions of linalg Ops.
-      .addPass(DispatchCreation::createCollapseDimensionsPass)
-      // Hoist scalar compute introduced from collapsing dimensions to
-      // increase CSE and deduplication opportunities.
-      .addPass(DispatchCreation::createHoistUniformScalarComputePass);
+      .addPass(DispatchCreation::createCollapseDimensionsPass);
 
+  // Hoist scalar compute introduced from collapsing dimensions to
+  // increase CSE and deduplication opportunities.
+  if (options.hoistUniformScalarCompute) {
+    FunctionLikeNest(passManager)
+        .addPass(DispatchCreation::createHoistUniformScalarComputePass);
+  }
   // Experimental data tiling path. The intent of this path is to set encodings
   // after fusion decisions have already been made, so encodings can be
   // separated from compiler fusion decisions.
