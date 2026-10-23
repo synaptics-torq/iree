@@ -42,7 +42,7 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
   }
 
   Block &block = body.front();
-  auto whitelistedOps = [&](Operation *op) {
+  auto computeOps = [&](Operation *op) {
     auto dialect = op->getDialect();
     if (isa<IREE::LinalgExt::IREELinalgExtDialect, linalg::LinalgDialect,
             tensor::TensorDialect>(dialect)) {
@@ -57,6 +57,31 @@ void MakeSingleDispatchForFunctionPass::runOnOperation() {
       return !isa<arith::ConstantOp>(op);
     }
     return false;
+  };
+
+  // A static reshape of a value from outside the region whose users are all
+  // outside the region only changes how the buffer is seen. Kept inside, it
+  // becomes a dispatch that copies the whole tensor, so leave it outside like
+  // the ABI ops; dispatch creation turns it into a flow.tensor.reshape.
+  auto isEdgeReshape = [&](Operation *op) {
+    if (!isa<tensor::CollapseShapeOp, tensor::ExpandShapeOp>(op)) {
+      return false;
+    }
+    auto isStatic = [](Value v) {
+      return cast<RankedTensorType>(v.getType()).hasStaticShape();
+    };
+    Value source = op->getOperand(0);
+    if (!isStatic(source) || !isStatic(op->getResult(0))) {
+      return false;
+    }
+    Operation *def = source.getDefiningOp();
+    if (def && computeOps(def)) {
+      return false;
+    }
+    return llvm::none_of(op->getUsers(), computeOps);
+  };
+  auto whitelistedOps = [&](Operation *op) {
+    return computeOps(op) && !isEdgeReshape(op);
   };
 
   // Find the region to outline by doing two slices.
