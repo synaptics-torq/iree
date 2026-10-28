@@ -144,3 +144,70 @@ util.func @multi_use_return(%arg0 : tensor<10xf32>, %arg1 : tensor<10xf32>,
 //       CHECK:   %[[DISPATCH:.+]] = flow.dispatch.region
 //       CHECK:   hal.tensor.barrier join(%[[DISPATCH]]
 //       CHECK:   hal.tensor.barrier join(%[[DISPATCH]]
+
+// -----
+
+// A reshape of an input that only feeds the output stays outside, so a function
+// that only reshapes gets no dispatch region.
+util.func public @edge_reshape(%arg0: !hal.buffer_view) -> !hal.buffer_view {
+  %0 = hal.tensor.import %arg0 : !hal.buffer_view -> tensor<2x3x4xf32>
+  %1 = tensor.collapse_shape %0 [[0], [1, 2]] : tensor<2x3x4xf32> into tensor<2x12xf32>
+  %2 = hal.tensor.export %1 : tensor<2x12xf32> -> !hal.buffer_view
+  util.return %2 : !hal.buffer_view
+}
+// CHECK-LABEL: func public @edge_reshape
+//  CHECK-NEXT:   %[[IMPORT:.+]] = hal.tensor.import
+//  CHECK-NEXT:   %[[COLLAPSE:.+]] = tensor.collapse_shape %[[IMPORT]]
+//  CHECK-NEXT:   %[[EXPORT:.+]] = hal.tensor.export %[[COLLAPSE]]
+//  CHECK-NEXT:   util.return %[[EXPORT]]
+
+// -----
+
+// An edge reshape stays outside while the computation still forms one region.
+util.func public @edge_reshape_with_compute(%arg0: tensor<2x3x4xf32>, %arg1: tensor<10xf32>)
+    -> (tensor<2x12xf32>, tensor<10xf32>) {
+  %0 = tensor.collapse_shape %arg0 [[0], [1, 2]] : tensor<2x3x4xf32> into tensor<2x12xf32>
+  %1 = tensor.empty() : tensor<10xf32>
+  %2 = linalg.generic {
+      indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>],
+      iterator_types = ["parallel"]}
+      ins(%arg1 : tensor<10xf32>) outs(%1 : tensor<10xf32>) {
+  ^bb0(%in: f32, %out: f32):
+    %3 = arith.negf %in : f32
+    linalg.yield %3 : f32
+  } -> tensor<10xf32>
+  util.return %0, %2 : tensor<2x12xf32>, tensor<10xf32>
+}
+// CHECK-LABEL: func public @edge_reshape_with_compute
+//  CHECK-SAME:     %[[ARG0:[a-zA-Z0-9]+]]: tensor<2x3x4xf32>
+//       CHECK:   %[[COLLAPSE:.+]] = tensor.collapse_shape %[[ARG0]]
+//       CHECK:   %[[DISPATCH:.+]] = flow.dispatch.region
+//   CHECK-NOT:     tensor.collapse_shape
+//       CHECK:     linalg.generic
+//       CHECK:     flow.return
+//       CHECK:   util.return %[[COLLAPSE]], %[[DISPATCH]]
+
+// -----
+
+// Reshapes that feed or read computed values stay inside the region.
+util.func public @reshape_inside(%arg0: tensor<2x3x4xf32>) -> tensor<2x3x4xf32> {
+  %0 = tensor.collapse_shape %arg0 [[0], [1, 2]] : tensor<2x3x4xf32> into tensor<2x12xf32>
+  %1 = tensor.empty() : tensor<2x12xf32>
+  %2 = linalg.generic {
+      indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>],
+      iterator_types = ["parallel", "parallel"]}
+      ins(%0 : tensor<2x12xf32>) outs(%1 : tensor<2x12xf32>) {
+  ^bb0(%in: f32, %out: f32):
+    %4 = arith.negf %in : f32
+    linalg.yield %4 : f32
+  } -> tensor<2x12xf32>
+  %3 = tensor.expand_shape %2 [[0], [1, 2]] output_shape [2, 3, 4] : tensor<2x12xf32> into tensor<2x3x4xf32>
+  util.return %3 : tensor<2x3x4xf32>
+}
+// CHECK-LABEL: func public @reshape_inside
+//       CHECK:   %[[DISPATCH:.+]] = flow.dispatch.region
+//       CHECK:     tensor.collapse_shape
+//       CHECK:     linalg.generic
+//       CHECK:     %[[EXPAND:.+]] = tensor.expand_shape
+//       CHECK:     flow.return %[[EXPAND]]
+//       CHECK:   util.return %[[DISPATCH]]
