@@ -538,6 +538,9 @@ TraversalResult ValueConsumerAffinityPVS::updateFromUse(Value value,
           auto &valueUsage = solver.getElementFor<ValueConsumerAffinityPVS>(
               *this, value, DFX::Resolution::REQUIRED);
           newState ^= valueUsage.getState();
+          if (operand.getOperandNumber() >= whileOp->getResults().size()) {
+            return TraversalResult::INCOMPLETE;
+          }
           auto &parentUsage = solver.getElementFor<ValueConsumerAffinityPVS>(
               *this,
               Position::forValue(

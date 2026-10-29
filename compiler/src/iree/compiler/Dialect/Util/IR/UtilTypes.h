@@ -367,7 +367,14 @@ static inline int32_t getRoundedElementByteWidth(Type type) {
     return vectorType.getNumElements() *
            getRoundedElementByteWidth(vectorType.getElementType());
   }
-  unsigned bitsUnaligned = type.getIntOrFloatBitWidth();
+
+  unsigned bitsUnaligned;
+  if (type.isIndex()) {
+    bitsUnaligned = dyn_cast<IndexType>(type).kInternalStorageBitWidth;
+  } else {
+    bitsUnaligned = type.getIntOrFloatBitWidth();
+  }
+
   assert(bitsUnaligned > 0 && "0-width types unsupported");
   // Round up to 8-bit aligned bytes.
   unsigned byteAligned = (bitsUnaligned + 8 - 1) / 8;
