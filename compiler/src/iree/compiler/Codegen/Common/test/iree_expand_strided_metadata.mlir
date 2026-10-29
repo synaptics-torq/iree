@@ -225,6 +225,42 @@ func.func @must_resolve_hal_binding_extract(%dim: index) -> (memref<f32>, index)
 
 // -----
 
+// Two i4 elements occupy one byte. A dynamic byte offset must use one
+// affine operand and scale by two instead of retaining an unused divisor.
+#i4_pipeline_layout = #hal.pipeline.layout<bindings = [
+  #hal.pipeline.binding<storage_buffer>
+]>
+func.func @resolve_binding_subspan_i4_offset(%byte_offset: index) -> (memref<i4>, index) {
+  %binding = hal.interface.binding.subspan layout(#i4_pipeline_layout) binding(0)
+      alignment(64) offset(%byte_offset) : memref<16xi4, strided<[1], offset: ?>>
+  %base, %offset, %size, %stride = memref.extract_strided_metadata %binding
+      : memref<16xi4, strided<[1], offset: ?>> -> memref<i4>, index, index, index
+  return %base, %offset : memref<i4>, index
+}
+// CHECK-DAG:   #[[$I4_OFFSET:.+]] = affine_map<()[s0] -> (s0 * 2)>
+// CHECK-LABEL: func.func @resolve_binding_subspan_i4_offset(
+// CHECK:       %[[I4_OFFSET_VALUE:.+]] = affine.apply #[[$I4_OFFSET]]()[%arg0]
+// CHECK:       return %{{.+}}, %[[I4_OFFSET_VALUE]]
+
+// -----
+
+// Canonicalization removes an explicit zero offset from a binding subspan.
+#i4_default_pipeline_layout = #hal.pipeline.layout<bindings = [
+  #hal.pipeline.binding<storage_buffer>
+]>
+func.func @resolve_binding_subspan_i4_default_offset() -> (memref<i4>, index) {
+  %binding = hal.interface.binding.subspan layout(#i4_default_pipeline_layout) binding(0)
+      alignment(64) : memref<16xi4>
+  %base, %offset, %size, %stride = memref.extract_strided_metadata %binding
+      : memref<16xi4> -> memref<i4>, index, index, index
+  return %base, %offset : memref<i4>, index
+}
+// CHECK-LABEL: func.func @resolve_binding_subspan_i4_default_offset(
+// CHECK-DAG:   %[[I4_ZERO:.+]] = arith.constant 0 : index
+// CHECK:       return %{{.+}}, %[[I4_ZERO]]
+
+// -----
+
 // Tests that iree_codegen.extract_strided_metadata on a non-HAL source
 // correctly converts to memref.extract_strided_metadata (fallback should
 // fire). This ensures the guard in the fallback doesn't break non-HAL cases.

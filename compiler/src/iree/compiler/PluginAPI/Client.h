@@ -84,6 +84,9 @@ public:
 
   // Adds passes to the |buildPreprocessingPassPipeline| pipeline at the end.
   virtual void extendPreprocessingPassPipeline(OpPassManager &passManager) {}
+
+  // Adds passes to the Flow pass pipeline after dispatch outlining/dedup.
+  virtual void extendFlowPassPipeline(OpPassManager &passManager) {}
 };
 
 // Policy for how to activate the plugin.
