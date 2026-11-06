@@ -816,8 +816,16 @@ static bool isIndexingMapAffectedByTransposeMap(
     AffineMap indexingMap, ArrayRef<int64_t> iterationSpacePermutation) {
   int64_t prevIdx = -1;
   for (auto result : indexingMap.getResults()) {
-    int64_t idx =
-        iterationSpacePermutation[cast<AffineDimExpr>(result).getPosition()];
+    // A constant result (e.g. a broadcast unit dim) does not move with the
+    // permutation. Treat any other non-dim expression as affected.
+    if (isa<AffineConstantExpr>(result)) {
+      continue;
+    }
+    auto dimExpr = dyn_cast<AffineDimExpr>(result);
+    if (!dimExpr) {
+      return true;
+    }
+    int64_t idx = iterationSpacePermutation[dimExpr.getPosition()];
     // Verify that the relative ordering of indices in the map remain the same.
     // If not, then the transposition affects the access order for the given
     // map (and associated operand).

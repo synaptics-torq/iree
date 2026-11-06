@@ -748,6 +748,43 @@ util.func public @sink_transpose_down_to_broadcast_elementwise(%arg0: tensor<3x4
 
 // -----
 
+util.func public @propagate_transpose_down_through_constant_broadcast_elementwise(%arg0: tensor<1x1x16x64xf32>, %arg1: tensor<1x1x1x64xf32>) -> tensor<1x16x1x64xf32> {
+  %empty = tensor.empty(): tensor<1x16x1x64xf32>
+  %transposed = linalg.transpose ins(%arg0 : tensor<1x1x16x64xf32>)
+      outs(%empty : tensor<1x16x1x64xf32>) permutation = [0, 2, 1, 3]
+  %0 = linalg.generic {indexing_maps = [
+                    affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>,
+                    affine_map<(d0, d1, d2, d3) -> (d0, 0, d2, d3)>,
+                    affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>],
+                iterator_types = ["parallel", "parallel", "parallel", "parallel"]}
+                ins(%transposed, %arg1 : tensor<1x16x1x64xf32>, tensor<1x1x1x64xf32>)
+                outs(%empty : tensor<1x16x1x64xf32>) {
+                  ^bb0(%in: f32, %in1: f32, %out: f32):
+                    %add = arith.addf %in, %in1 : f32
+                    linalg.yield %add : f32
+                  } -> tensor<1x16x1x64xf32>
+  util.return %0 : tensor<1x16x1x64xf32>
+}
+
+// Verify that a constant result in the broadcast operand's map does not stop
+// the transpose from sinking through the elementwise op.
+
+//   SINK-DAG: #[[$MAP:.+]] = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+//   SINK-DAG: #[[$MAP1:.+]] = affine_map<(d0, d1, d2, d3) -> (d0, 0, d1, d3)>
+// SINK-LABEL: util.func public @propagate_transpose_down_through_constant_broadcast_elementwise
+//  SINK-SAME:   %[[ARG0:[A-Za-z0-9]+]]: tensor<1x1x16x64xf32>
+//  SINK-SAME:   %[[ARG1:[A-Za-z0-9]+]]: tensor<1x1x1x64xf32>
+//       SINK:   %[[ELEM:.+]] = linalg.generic
+//  SINK-SAME:     indexing_maps = [#[[$MAP]], #[[$MAP1]], #[[$MAP]]]
+//  SINK-SAME:     ins(%[[ARG0]], %[[ARG1]] : tensor<1x1x16x64xf32>, tensor<1x1x1x64xf32>
+//       SINK:     arith.addf
+//       SINK:   %[[TRANSPOSE:.+]] = linalg.transpose ins(%[[ELEM]] : tensor<1x1x16x64xf32>
+//  SINK-SAME:                    outs({{.*}} : tensor<1x16x1x64xf32>)
+//  SINK-SAME:                    permutation = [0, 2, 1, 3]
+//       SINK:   util.return %[[TRANSPOSE]] : tensor<1x16x1x64xf32>
+
+// -----
+
 util.func public @propagate_transpose_up_through_broadcast_elementwise(%arg0: tensor<2x3x4xf32>, %arg1: tensor<3x4xf32>) -> tensor<3x4x2xf32> {
   %empty = tensor.empty(): tensor<2x3x4xf32>
   %0 = linalg.generic {indexing_maps = [
