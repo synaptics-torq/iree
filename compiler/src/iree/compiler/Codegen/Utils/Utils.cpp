@@ -1451,16 +1451,18 @@ OpFoldResult convertByteOffsetToElementOffset(RewriterBase &rewriter,
                                               Location loc,
                                               OpFoldResult byteOffset,
                                               Type elementType) {
+  if (!byteOffset)
+    return rewriter.getIndexAttr(0);
   if (isa<ComplexType, FloatType, IntegerType, VectorType>(elementType)) {
     unsigned typeBitWidth = IREE::Util::getTypeBitWidth(elementType);
     assert(llvm::isPowerOf2_32(typeBitWidth) &&
            "unhandled non powers of 2 bit width while converting byte offset "
            "to element offset");
-    AffineExpr s0, s1;
-    bindSymbols(rewriter.getContext(), s0, s1);
+    AffineExpr s0;
+    bindSymbols(rewriter.getContext(), s0);
     return affine::makeComposedFoldedAffineApply(
         rewriter, loc, (s0 * 8).floorDiv(typeBitWidth),
-        {byteOffset, rewriter.getIndexAttr(typeBitWidth)});
+        {byteOffset});
   } else {
     OpFoldResult elementByteSize =
         IREE::Util::SizeOfOp::create(rewriter, loc, elementType).getResult();
